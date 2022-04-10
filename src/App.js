@@ -1,87 +1,118 @@
-import './App.css';
-import { createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import app from './firebase.init';
+import { createUserWithEmailAndPassword, getAuth, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import 'bootstrap/dist/css/bootstrap.min.css';
+import './App.css';
+import app from "./firebase.init";
 import Form from 'react-bootstrap/Form';
-import { Button } from 'react-bootstrap';
-import { useState } from 'react';
+import Button from 'react-bootstrap/Button';
+import { useState } from "react";
 
-const auth = getAuth(app);
-
+const auth = getAuth(app)
 
 function App() {
-
   const [validated, setValidated] = useState(false);
+  const [registered, setRegistered] = useState(false);
   const [error, setError] = useState('');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [registered,setRegistered] = useState('false');
 
-  const handleEmailBlur = (e) => {
-    setEmail(e.target.value);
+  const handleNameBlur= event =>{
+    setName(event.target.value);
   }
-  const handlePasswordBlur = (e) => {
-    setPassword(e.target.value);
+
+  const handleEmailBlur = event => {
+    setEmail(event.target.value);
   }
-  const handleFormSubmit = (e) => {
-    e.preventDefault();
-    const form = e.currentTarget;
+
+  const handlePasswordBlur = event => {
+    setPassword(event.target.value);
+  }
+
+  const handleRegisteredChange = event => {
+    setRegistered(event.target.checked)
+  }
+
+  const handleFormSubmit = event => {
+    event.preventDefault();
+    const form = event.currentTarget;
     if (form.checkValidity() === false) {
-      e.stopPropagation();
+      event.stopPropagation();
       return;
     }
 
-    if (!/(?=.*[!@#$%^&*])/.test(password)) {
-      setError('Password should contain at least one special charecter');
+    if (!/(?=.*?[#?!@$%^&*-])/.test(password)) {
+      setError('Password Should contain at least one special character');
       return;
     }
-
     setValidated(true);
     setError('');
 
-    if(registered){
-      signInWithEmailAndPassword(auth,email,password)
-      .then(result =>{
-        const user = result.user;
-        console.log(user);
-      })
-      .catch(error=>{
-        setError(error.message);
-      })
+    if (registered) {
+      signInWithEmailAndPassword(auth, email, password)
+        .then(result => {
+          const user = result.user;
+          console.log(user);
+        })
+        .catch(error => {
+          console.error(error);
+          setError(error.message);
+        })
     }
-    else{
+    else {
       createUserWithEmailAndPassword(auth, email, password)
-      .then(result => {
-        const user = result.user;
-        console.log(user);
-        setEmail('');
-        setPassword('');
-      })
-      .catch(error => {
-        console.error(error);
-        setError(error.message);
-      })
+        .then(result => {
+          const user = result.user;
+          console.log(user);
+          setEmail('');
+          setPassword('');
+          verifyEmail();
+          setUserName();
+        })
+        .catch(error => {
+          console.error(error);
+          setError(error.message);
+        })
     }
-    
-    e.preventDefault();
+    event.preventDefault();
   }
 
-  const handleRegisteredChange = (e) =>{
-    setRegistered(e.target.checked);
+  const handlePasswordReset = () => {
+    sendPasswordResetEmail(auth, email)
+      .then(() => {
+        console.log('email sent')
+      })
   }
-  
+
+  const setUserName = () =>{
+    updateProfile(auth.currentUser, {
+      displayName: name
+    })
+    .then(() =>{
+      console.log('updating name');
+    })
+    .catch(error =>{
+      setError(error.message);
+    })
+  }
+  const verifyEmail = () => {
+    sendEmailVerification(auth.currentUser)
+      .then(() => {
+        console.log('Email Verification Sent');
+      })
+  }
+
   return (
     <div>
-      {/* <form onSubmit={handleFormSubmit}>
-        <input onBlur={handleEmailBlur} type="email" name="" id="" />
-        <br />
-        <input onBlur={handlePasswordBlur} type="password" name="" id="" />
-        <br />
-        <input type="submit" value="Login" />
-      </form> */}
-      <div className="registration w-50 mx-auto mt-4">
-        <h2 className='text-primary mb-4'>Please {registered? 'Login': 'Register'}!!</h2>
+      <div className="registration w-50 mx-auto mt-5">
+        <h2 className="text-primary">Please {registered ? 'Login' : 'Register'}!!</h2>
         <Form noValidate validated={validated} onSubmit={handleFormSubmit}>
+          { !registered && <Form.Group className="mb-3" controlId="formBasicEmail">
+            <Form.Label>Your Name</Form.Label>
+            <Form.Control onBlur={handleNameBlur} type="text" placeholder="Your Name" required />
+            <Form.Control.Feedback type="invalid">
+              Please provide your name.
+            </Form.Control.Feedback>
+          </Form.Group>}
           <Form.Group className="mb-3" controlId="formBasicEmail">
             <Form.Label>Email address</Form.Label>
             <Form.Control onBlur={handleEmailBlur} type="email" placeholder="Enter email" required />
@@ -100,12 +131,16 @@ function App() {
               Please provide a valid password.
             </Form.Control.Feedback>
           </Form.Group>
-          <p className='text-danger'>{error}</p>
           <Form.Group className="mb-3" controlId="formBasicCheckbox">
-            <Form.Check onChange={handleRegisteredChange} type="checkbox" label="Already Register?" />
+            <Form.Check onChange={handleRegisteredChange} type="checkbox" 
+            label="Already Registered?" />
           </Form.Group>
+
+          <p className="text-danger">{error}</p>
+          <Button onClick={handlePasswordReset} variant="link">Forget Password?</Button>
+          <br />
           <Button variant="primary" type="submit">
-            {registered? 'Login': 'Register'}
+            {registered ? 'Login' : 'Register'}
           </Button>
         </Form>
       </div>
